@@ -1,0 +1,3 @@
+CREATE TYPE "BoardVisibility" AS ENUM ('PRIVATE', 'WORKSPACE', 'PUBLIC');
+
+ALTER TABLE "Board" ADD COLUMN "visibility" "BoardVisibility" NOT NULL DEFAULT 'PRIVATE';

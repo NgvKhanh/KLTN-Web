@@ -1,0 +1,33 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/src/generated/prisma
+
+# File nguoi dung tai len (anh nen bang...)
+/uploads
+
+# Cache phan hoi tho cua LLM khi chay danh gia (npm run eval:ai) va file ket qua thu
+/.ai-eval-cache
+/eval-result*
+
+# Bo nho ket qua tung thi nghiem va du lieu tho khi chay danh gia phan cong (npm run eval:assign); bao cao .md / .csv / .svg thi COMMIT
+/.eval-assign-cache
+/eval-assign-*.json
+
+# Du lieu tho khi chay danh gia lop 2 (npm run eval:plan); bao cao .md thi COMMIT
+/eval-plan-*.json
+
+# Du lieu tho khi chay danh gia thanh phan Ho so (src/scripts/evalDeclared.ts); bao cao .md thi COMMIT
+/eval-declared-*.json
+
+# Bo dem phan hoi tho cua LLM + du lieu tho khi chay danh gia chatbot (src/scripts/evaluateChat.ts); bao cao .md thi COMMIT
+/.chat-eval-cache
+/.chat-actions-eval-cache
+/eval-chat-*.json
+
+# Du lieu tho khi chay danh gia chatbot v2 (evaluateChat.ts, bo cau hoi v2); bao cao .md thi COMMIT
+/eval-chat2-*.json
+
+# Bao cao do bao phu ma (npm run test:coverage)
+/coverage

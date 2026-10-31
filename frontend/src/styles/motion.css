@@ -1,0 +1,205 @@
+/* He chuyen dong dung chung. Chi dung hieu ung VAO (khong lam hieu ung thoat) va khong de
+   transform ton tai sau khi chay xong -> khong tao "containing block" lam lech popover fixed. */
+:root {
+  --motion-fast: 140ms;
+  --motion-base: 180ms;
+  --motion-page: 150ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes tf-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tf-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes tf-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hop thoai: lop nen mo dan, hop noi dung (con truc tiep) phong nhe len */
+.tf-overlay {
+  animation: tf-fade-in var(--motion-base) var(--motion-ease-out);
+}
+.tf-overlay > * {
+  animation: tf-pop-in var(--motion-base) var(--motion-ease-out);
+}
+
+/* Menu, popover */
+.tf-menu-in {
+  animation: tf-menu-in var(--motion-fast) var(--motion-ease-out);
+}
+
+/* Doi trang: chi doi do mo (khong dung transform o phan tu cha cua noi dung) */
+.tf-page-in {
+  animation: tf-fade-in var(--motion-page) ease-out;
+}
+
+/* The tren bang: the moi xuat hien / vua chuyen cot mo dan vao; the vua doi boi nguoi khac vien noi bat.
+   Dung thuoc tinh `translate` (rieng biet voi `transform`) de khong danh nhau voi transform cua dnd-kit. */
+@keyframes tf-card-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes tf-card-flash {
+  0%,
+  35% {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 1px;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+  }
+}
+
+.tf-card-in {
+  animation: tf-card-in 200ms var(--motion-ease-out);
+}
+.tf-card-flash {
+  animation: tf-card-flash 1.2s ease-out;
+}
+
+/* Nguoi vua vao xem bang: avatar bat len (thuoc tinh `scale` rieng, khong dung transform) */
+@keyframes tf-avatar-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+.tf-avatar-in {
+  animation: tf-avatar-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Thanh tien do: dai xanh lon ra tu trai (dung thuoc tinh `scale` rieng) */
+@keyframes tf-bar-in {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+.tf-bar-in {
+  transform-origin: left;
+  animation: tf-bar-in 600ms var(--motion-ease-out);
+}
+
+/* Ngan dieu huong tren dien thoai: nen mo dan, ngan truot vao tu trai (thuoc tinh `translate` rieng) */
+@keyframes tf-drawer-in {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+.tf-drawer-backdrop {
+  animation: tf-fade-in var(--motion-base) ease-out;
+}
+.tf-drawer-in {
+  animation: tf-drawer-in 220ms var(--motion-ease-out);
+}
+
+/* Dong/mo mem bang chieu cao dong luoi (khong can do chieu cao bang JS) */
+.tf-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-base) var(--motion-ease-out);
+}
+.tf-collapse[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.tf-collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Khung cho tai (skeleton): nen xam + dai sang chay ngang. Giam chuyen dong -> chi con khoi xam tinh. */
+:root {
+  --tf-skeleton-base: #e2e8f0;
+  --tf-skeleton-shine: rgb(255 255 255 / 0.6);
+}
+.dark {
+  --tf-skeleton-base: #334155;
+  --tf-skeleton-shine: rgb(255 255 255 / 0.08);
+}
+
+@keyframes tf-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+.tf-skeleton {
+  background-color: var(--tf-skeleton-base);
+  background-image: linear-gradient(90deg, transparent 0%, var(--tf-skeleton-shine) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: tf-shimmer 1.4s linear infinite;
+}
+/* Khung nam tren nen mau cua bang (anh/mau nen tuy nguoi dung chon) */
+.tf-skeleton.tf-skeleton-on-color {
+  background-color: rgb(255 255 255 / 0.28);
+}
+
+/* Nguoi dung chon giam chuyen dong: tat MOI hieu ung trang tri.
+   Moi lop co "animation:" o tren phai duoc liet ke o day (co test kiem tra: motion.test.ts). */
+@media (prefers-reduced-motion: reduce) {
+  .tf-overlay,
+  .tf-overlay > *,
+  .tf-menu-in,
+  .tf-page-in,
+  .tf-card-in,
+  .tf-avatar-in,
+  .tf-bar-in,
+  .tf-drawer-backdrop,
+  .tf-drawer-in,
+  .tf-skeleton {
+    animation: none;
+  }
+  .tf-collapse {
+    transition: none;
+  }
+  /* Vien noi bat van can bao duoc thay doi: chuyen thanh vien tinh (lop se bi go sau ~1,6 giay) */
+  .tf-card-flash {
+    animation: none;
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 1px;
+  }
+}

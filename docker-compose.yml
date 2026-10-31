@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taskflow
+      POSTGRES_PASSWORD: taskflow
+      POSTGRES_DB: taskflow
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U taskflow -d taskflow']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: taskflow-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Lay JWT_SECRET, UNSPLASH_ACCESS_KEY... tu file .env cua backend
+    env_file:
+      - ./backend/.env
+    # Cac gia tri duoi day GHI DE .env cho hop voi moi truong Docker
+    environment:
+      NODE_ENV: development
+      PORT: '4000'
+      # Trong mang Docker, host cua Postgres la ten service "postgres"
+      DATABASE_URL: postgresql://taskflow:taskflow@postgres:5432/taskflow?schema=public
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - '4000:4000'
+    volumes:
+      # Bind mount ma nguon de sua code khong phai build lai image
+      - ./backend:/app
+      # Giu node_modules va Prisma Client ban Linux cua container (khong bi ban Windows tren host de len)
+      - /app/node_modules
+      - /app/src/generated
+
+volumes:
+  postgres_data:

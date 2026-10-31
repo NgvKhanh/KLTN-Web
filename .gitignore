@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Prisma
+backend/prisma/dev.db
+
+# Tai khoan demo co mat khau (chi de tren may, KHONG commit)
+TAI_KHOAN_TALKSHOW.md
+
+# Tai lieu khoa luan dang nhi phan (docx/pdf, ~40MB, hay sua): sao luu ngoai may, khong dua vao git.
+# Ma nguon cua cac so do (drawio, script) o docs/thiet-ke-he-thong van duoc commit.
+docs/bao-cao/
+
+# Tep khoa tam cua Word / Office
+~$*
+
+# Python cache
+__pycache__/

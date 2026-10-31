@@ -1,0 +1,27 @@
+/* Shared identity for public pages and authentication. System fonts support Vietnamese without a network font request. */
+:root {
+  --brand-primary: #4f46e5;
+  --brand-primary-hover: #4338ca;
+  --brand-accent: #06b6d4;
+  --brand-focus: #6366f1;
+  --brand-ink: #172b3a;
+  --brand-muted: #52616b;
+  --brand-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Nen nhat cua muc dang chon va chu nhan manh (chu can doc duoc tren nen sang/toi) */
+  --brand-primary-soft: #eef2ff;
+  --brand-primary-ink: #4338ca;
+}
+
+.dark {
+  --brand-primary-soft: rgb(99 102 241 / 0.2);
+  --brand-primary-ink: #a5b4fc;
+}
+
+/* Mau hanh dong chung cua ung dung: dung bg-primary, text-primary-ink, border-primary...
+   "inline" de Tailwind giu tham chieu var(), nho do .dark doi mau ngay khong can class dark:. */
+@theme inline {
+  --color-primary: var(--brand-primary);
+  --color-primary-hover: var(--brand-primary-hover);
+  --color-primary-soft: var(--brand-primary-soft);
+  --color-primary-ink: var(--brand-primary-ink);
+}

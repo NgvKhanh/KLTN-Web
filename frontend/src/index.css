@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "./styles/brand.css";
+@import "./styles/motion.css";
+
+/* Bat dark mode theo class .dark tren <html> (thay vi chi prefers-color-scheme) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --nav-bg: #1558bc;
+  --app-bg: #f8fafc;
+}
+
+.dark {
+  --nav-bg: #0b1220;
+  --app-bg: #0f172a;
+}
+
+body {
+  background-color: var(--app-bg);
+}
+
+.dark body {
+  color: #e2e8f0;
+}
+
+/* Dang keo the / cot: tat lam mo nen cua cac cot. Vat nang dang bay tren ca bang (DragOverlay) lam trinh duyet phai
+   tinh lai lop mo o MOI khung hinh; cot da dac 95% nen khong thay khac biet. */
+.tf-dragging .tf-list-col {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Thanh cuon ngang cua board cho giong Trello (nen mo, thumb sang) */
+.board-scroll::-webkit-scrollbar {
+  height: 14px;
+}
+.board-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.12);
+}
+.board-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* Thanh cuon manh cho vung cuon rieng trong trang (Hoat dong gan day, ket qua tim kiem):
+   xam trung tinh, thay ro tren ca nen sang lan nen toi */
+.tf-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+}
+.dark .tf-scroll {
+  scrollbar-color: rgb(100 116 139 / 0.8) transparent;
+}
+
+/* Thanh cuon doc cua vung the trong 1 danh sach (nen cot sang mau) */
+.list-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(9, 30, 66, 0.25) transparent;
+}
+.list-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(9, 30, 66, 0.25);
+  border-radius: 8px;
+}
+.list-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(9, 30, 66, 0.4);
+}
+
+/* Che dark: phu mot lop toi len anh/mau nen cua bang cho do choi mat.
+   Dung inset box-shadow thay vi mot div phu -> lop nay nam tren nen nhung
+   duoi noi dung, khong phai dung toi z-index cua cac phan tu ben trong. */
+.dark .board-canvas {
+  box-shadow: inset 0 0 0 100vmax rgba(2, 6, 23, 0.55);
+}

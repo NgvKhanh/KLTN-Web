@@ -1,0 +1,445 @@
+/* Trang gioi thieu (/): bo cuc don gian - header, phan mo dau + hinh minh hoa bang, tinh nang, cau hoi, footer.
+   Khong gradient / do trang tri; mau chu va nut lay tu bien thuong hieu (styles/brand.css). */
+.landing-page {
+  --tf-ink: var(--brand-ink);
+  --tf-muted: var(--brand-muted);
+  --tf-primary: var(--brand-primary);
+  --tf-primary-hover: var(--brand-primary-hover);
+  --tf-focus: var(--brand-focus);
+  --tf-surface: #fff;
+  --tf-surface-muted: #f6f8fa;
+  --tf-border: #dce4e9;
+  --tf-text-label: 0.75rem;
+  --tf-text-body: 0.9375rem;
+  --tf-text-button: 0.875rem;
+  color: var(--tf-ink);
+  background: var(--tf-surface);
+  font-family: var(--brand-font);
+  -webkit-font-smoothing: antialiased;
+  overflow: clip;
+}
+.landing-page .tf-wrap {
+  width: min(1120px, calc(100% - 64px));
+  margin-inline: auto;
+}
+.landing-page .tf-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.landing-page button {
+  cursor: pointer;
+}
+.landing-page :is(a, button, summary):focus-visible {
+  outline: 3px solid var(--tf-focus);
+  outline-offset: 4px;
+}
+.landing-page section[id] {
+  scroll-margin-top: 80px;
+}
+.tf-skip-link {
+  position: fixed;
+  top: 10px;
+  left: 20px;
+  z-index: 100;
+  padding: 12px 18px;
+  background: var(--tf-surface);
+  border-radius: 8px;
+  transform: translateY(-160%);
+}
+.tf-skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Header */
+.tf-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--tf-surface);
+  border-bottom: 1px solid var(--tf-border);
+}
+.tf-header-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 64px;
+}
+.tf-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  flex-shrink: 0;
+  color: var(--tf-ink);
+}
+.tf-desktop-nav {
+  display: flex;
+  gap: 24px;
+}
+.tf-desktop-nav a,
+.tf-login-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--tf-text-button);
+  font-weight: 500;
+  color: var(--tf-muted);
+}
+.tf-desktop-nav a:hover,
+.tf-login-link:hover {
+  color: var(--tf-ink);
+}
+.tf-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-left: auto;
+}
+
+/* Nut */
+.landing-page .tf-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: var(--tf-text-button);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  transition: background 150ms;
+}
+.tf-button-primary {
+  background: var(--tf-primary);
+  color: #fff;
+}
+.tf-button-primary:hover {
+  background: var(--tf-primary-hover);
+}
+.tf-button-secondary {
+  color: var(--tf-ink);
+  background: var(--tf-surface);
+  border: 1px solid var(--tf-border);
+}
+.tf-button-secondary:hover {
+  background: var(--tf-surface-muted);
+}
+.tf-header .tf-header-cta {
+  min-height: 38px;
+  padding: 8px 14px;
+}
+.tf-menu-button,
+.tf-mobile-nav {
+  display: none;
+}
+
+/* Phan mo dau */
+.tf-hero {
+  border-bottom: 1px solid var(--tf-border);
+  padding-block: 64px 72px;
+}
+.tf-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 56px;
+  align-items: center;
+}
+.tf-hero h1 {
+  font-size: clamp(30px, 3.2vw, 42px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.tf-hero-description {
+  margin-top: 18px;
+  max-width: 460px;
+  color: var(--tf-muted);
+  font-size: var(--tf-text-body);
+  line-height: 1.75;
+}
+.tf-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+.tf-hero-visual {
+  min-width: 0;
+}
+
+/* Cac phan noi dung */
+.tf-section {
+  padding-block: 64px;
+}
+.landing-page h2 {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin-bottom: 28px;
+}
+
+/* Tinh nang: luoi 3 cot, ke vien mong, khong the mau */
+.tf-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--tf-border);
+  border-left: 1px solid var(--tf-border);
+}
+.tf-feature {
+  padding: 24px;
+  border-right: 1px solid var(--tf-border);
+  border-bottom: 1px solid var(--tf-border);
+}
+.tf-feature h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 650;
+}
+.tf-feature h3 .tf-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--tf-primary);
+}
+.tf-feature p {
+  margin-top: 10px;
+  color: var(--tf-muted);
+  font-size: var(--tf-text-body);
+  line-height: 1.7;
+}
+
+/* Cau hoi thuong gap */
+.tf-faq-section {
+  border-top: 1px solid var(--tf-border);
+}
+.tf-faq-list {
+  max-width: 760px;
+  border-top: 1px solid var(--tf-border);
+}
+.tf-faq-list details {
+  border-bottom: 1px solid var(--tf-border);
+}
+.tf-faq-list summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  cursor: pointer;
+  list-style: none;
+  padding: 18px 0;
+  font-size: var(--tf-text-body);
+  font-weight: 600;
+}
+.tf-faq-list summary::-webkit-details-marker {
+  display: none;
+}
+.tf-faq-list summary .tf-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--tf-muted);
+  transition: transform 150ms;
+}
+.tf-faq-list details[open] summary .tf-icon {
+  transform: rotate(45deg);
+}
+.tf-faq-list details > p {
+  padding: 0 32px 18px 0;
+  font-size: var(--tf-text-body);
+  line-height: 1.75;
+  color: var(--tf-muted);
+}
+
+/* Footer */
+.tf-footer {
+  border-top: 1px solid var(--tf-border);
+  background: var(--tf-surface-muted);
+}
+.tf-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 32px;
+  padding-block: 20px;
+}
+.tf-footer-brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  font-size: var(--tf-text-label);
+  color: var(--tf-muted);
+}
+.tf-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  font-size: var(--tf-text-button);
+  color: var(--tf-muted);
+}
+.tf-footer nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.tf-footer nav a:hover {
+  color: var(--tf-ink);
+}
+
+/* Dung cho hinh minh hoa bang (components/landing/BoardPreview) */
+.tf-demo-badge {
+  margin-left: auto;
+  font-size: var(--tf-text-label);
+  font-weight: 500;
+  border: 1px solid var(--tf-border);
+  border-radius: 4px;
+  padding: 2px 5px;
+  color: var(--tf-muted);
+  white-space: nowrap;
+}
+.tf-avatar-stack {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding-left: 4px;
+}
+.tf-avatar-stack > i {
+  margin-left: -5px;
+  border: 2px solid white;
+}
+.tf-person {
+  width: 23px;
+  height: 23px;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 7px;
+  font-weight: 650;
+  font-style: normal;
+}
+.tf-person-purple {
+  background: #eae3fb;
+  color: #7c61a8;
+}
+.tf-person-orange {
+  background: #fbe9d8;
+  color: #b37a42;
+}
+.tf-person-blue {
+  background: #e1edf9;
+  color: #587ea5;
+}
+.tf-person-green {
+  background: #def1e8;
+  color: #569277;
+}
+.tf-tag-orange {
+  color: #b07b47;
+  background: #fff2e3;
+}
+.tf-tag-purple {
+  color: #8b6bb4;
+  background: #f1eafb;
+}
+.tf-tag-blue {
+  color: #587ea5;
+  background: #eaf2fc;
+}
+.tf-tag-green {
+  color: #49997d;
+  background: #e5f5ee;
+}
+
+@media (max-width: 1000px) {
+  .tf-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .tf-hero-description {
+    max-width: 640px;
+  }
+  .tf-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .tf-desktop-nav {
+    display: none;
+  }
+  .tf-menu-button {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    color: var(--tf-muted);
+    border-radius: 6px;
+  }
+  .tf-mobile-nav {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    left: 0;
+    right: 0;
+    top: calc(100% + 1px);
+    padding: 8px;
+    border: 1px solid var(--tf-border);
+    border-radius: 0 0 10px 10px;
+    background: var(--tf-surface);
+  }
+  .tf-mobile-nav a {
+    padding: 12px;
+    font-size: var(--tf-text-body);
+    color: var(--tf-muted);
+  }
+  .tf-mobile-nav a:hover {
+    background: var(--tf-surface-muted);
+  }
+  .tf-hero {
+    padding-block: 40px 48px;
+  }
+  .tf-section {
+    padding-block: 48px;
+  }
+  .tf-feature-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .landing-page .tf-wrap {
+    width: calc(100% - 32px);
+  }
+  .tf-header-inner {
+    gap: 12px;
+  }
+  .tf-header-actions {
+    gap: 8px;
+  }
+  .tf-login-link {
+    display: none;
+  }
+  .tf-hero-actions .tf-button {
+    flex: 1;
+  }
+  .tf-feature {
+    padding: 20px 16px;
+  }
+  .tf-faq-list details > p {
+    padding-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,10 @@
+node_modules
+dist
+src/generated
+uploads
+npm-debug.log
+.git
+# Bien moi truong: KHONG dua vao image (bi mat + moi moi truong mot khac)
+.env
+.env.*
+.env.example

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="56" viewBox="0 0 200 56" fill="none">
+  <g transform="translate(0 6) scale(0.9167)">
+    <path d="M41.8 7.9L16.5 16L24.6 25.2Z" fill="#ffffff"/>
+    <path d="M41.8 7.9L24.6 25.2L31.5 36.7Z" fill="#ffffff" opacity=".72"/>
+    <path d="M16.5 16L24.6 25.2L10.8 40.1L6.2 28.6Z" fill="#ffffff" opacity=".45"/>
+  </g>
+  <text x="56" y="38" font-family="Inter, 'Segoe UI', system-ui, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="-0.8" fill="#ffffff">TaskFlow</text>
+</svg>
