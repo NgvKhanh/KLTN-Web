@@ -40,23 +40,28 @@ const PUBLIC_USER_SELECT = {
  * Loi gui mail duoc nuot (chi log) de khong lam hong luong dang ky.
  * Tra ve previewUrl (link mail Ethereal) khi chay dev.
  */
+/** Tao token xac minh (ghi CSDL) va dung noi dung email, chua gui. */
+async function buildVerificationEmail(user: { id: string; name: string }) {
+  const rawToken = await createAuthToken(
+    user.id,
+    'EMAIL_VERIFY',
+    EMAIL_VERIFY_TTL_MS
+  );
+  const url = `${env.frontendUrl}/verify-email?token=${rawToken}`;
+  return verifyEmailEmail({
+    name: user.name,
+    url,
+    expiresInHours: EMAIL_VERIFY_TTL_MS / 3600000,
+  });
+}
+
 async function sendVerificationEmail(user: {
   id: string;
   name: string;
   email: string;
 }): Promise<{ previewUrl: string | null }> {
   try {
-    const rawToken = await createAuthToken(
-      user.id,
-      'EMAIL_VERIFY',
-      EMAIL_VERIFY_TTL_MS
-    );
-    const url = `${env.frontendUrl}/verify-email?token=${rawToken}`;
-    const { subject, html } = verifyEmailEmail({
-      name: user.name,
-      url,
-      expiresInHours: EMAIL_VERIFY_TTL_MS / 3600000,
-    });
+    const { subject, html } = await buildVerificationEmail(user);
     const { previewUrl } = await sendMail({ to: user.email, subject, html });
     return { previewUrl: env.isProduction ? null : previewUrl };
   } catch (err) {
@@ -96,8 +101,16 @@ export async function registerUser(input: RegisterInput) {
   // Moi nguoi dung co san 1 khong gian ca nhan
   await createPersonalWorkspace(user.id, user.name);
 
-  // Gui mail xac minh (khong chan neu that bai)
-  await sendVerificationEmail(user);
+  // Mail xac minh: token tao NGAY (cho xong, de khong ghi CSDL lo lung sau khi da tra loi), con buoc GUI chay nen -
+  // may chu mail cham / cong SMTP bi chan khong duoc lam treo dang ky. Gui loi chi ghi log, nguoi dung bam gui lai.
+  try {
+    const { subject, html } = await buildVerificationEmail(user);
+    void sendMail({ to: user.email, subject, html }).catch((err: unknown) => {
+      console.error('[auth] Gui mail xac minh that bai:', err);
+    });
+  } catch (err) {
+    console.error('[auth] Tao mail xac minh that bai:', err);
+  }
 
   const token = signToken({ userId: user.id, tokenVersion: user.tokenVersion });
 

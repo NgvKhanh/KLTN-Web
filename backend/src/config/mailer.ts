@@ -16,6 +16,17 @@ import { env } from './env';
 let transporterPromise: Promise<Transporter> | null = null;
 let usingEthereal = false;
 
+/**
+ * Gioi han thoi gian cho may chu mail (mac dinh cua nodemailer: toi 2 phut). Cong SMTP bi chan (Render goi Free
+ * chan 25 / 465 / 587, ke ca Ethereal) thi request khong rot ngay ma treo den het thoi gian cho -> moi luong gui
+ * mail (quen mat khau, moi thanh vien...) treo theo. Cat o 10 giay ket noi / chao hoi, 20 giay im lang.
+ */
+export const MAIL_TIMEOUTS = {
+  connectionTimeout: 10_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 20_000,
+} as const;
+
 async function createTransporter(): Promise<Transporter> {
   if (env.mail.host) {
     usingEthereal = false;
@@ -26,6 +37,7 @@ async function createTransporter(): Promise<Transporter> {
       auth: env.mail.user
         ? { user: env.mail.user, pass: env.mail.pass }
         : undefined,
+      ...MAIL_TIMEOUTS,
     });
   }
 
@@ -41,6 +53,7 @@ async function createTransporter(): Promise<Transporter> {
     port: 587,
     secure: false,
     auth: { user: testAccount.user, pass: testAccount.pass },
+    ...MAIL_TIMEOUTS,
   });
 }
 
