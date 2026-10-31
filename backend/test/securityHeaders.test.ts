@@ -66,3 +66,23 @@ describe('body form-urlencoded khong con duoc doc', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// Trien khai Vercel + Render (COOKIE_SAMESITE=none): cookie di kem request cheo trang -> chan request ghi tu trang la
+describe('request ghi tu Origin ngoai CORS_ORIGIN bi chan (originGuard)', () => {
+  it('form multipart tu trang la -> 403 truoc khi toi route (ke ca upload)', async () => {
+    const res = await agent()
+      .post('/api/auth/login')
+      .set('Origin', 'https://trang-la.example')
+      .field('email', 'nobody@example.com');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('ORIGIN_NOT_ALLOWED');
+  });
+
+  it('frontend trong CORS_ORIGIN -> di tiep toi route nhu cu', async () => {
+    const res = await agent()
+      .post('/api/auth/login')
+      .set('Origin', 'http://localhost:5173')
+      .send({ email: 'nobody@example.com', password: 'whatever1' });
+    expect(res.status).toBe(401);
+  });
+});

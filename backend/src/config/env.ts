@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { parseCookieSameSite } from './cookieSameSite';
 import { parseTrustProxy } from './trustProxy';
 
 // Doc file .env va nap vao process.env
@@ -109,11 +110,16 @@ export const env = {
    * Xem config/trustProxy.ts. BAT BUOC dat khi chay sau nginx / Cloudflare...
    */
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
-  /** Danh sach domain frontend duoc phep goi API */
+  /**
+   * Danh sach domain frontend duoc phep goi API. Bo dau "/" cuoi (trinh duyet gui Origin khong co "/",
+   * dan nham "https://x.vercel.app/" se lam hong ca CORS lan originGuard).
+   */
   corsOrigins: getString('CORS_ORIGIN', 'http://localhost:5173')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter((origin) => origin.length > 0),
+  /** sameSite cua cookie dang nhap: lax (mac dinh) / strict / none. Xem config/cookieSameSite.ts. */
+  cookieSameSite: parseCookieSameSite(process.env.COOKIE_SAMESITE),
   /** Chuoi ket noi PostgreSQL, bat buoc phai co */
   databaseUrl: getString('DATABASE_URL'),
   /** Khoa bi mat de ky JWT, bat buoc phai co va nen du dai/kho doan */

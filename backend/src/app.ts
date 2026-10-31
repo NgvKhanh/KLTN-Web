@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { env } from './config/env';
 import { AVATAR_DIR, BOARD_BG_DIR } from './config/upload';
 import { optionalAuth } from './middleware/auth.middleware';
+import { originGuard } from './middleware/originGuard.middleware';
 import activityRoutes from './modules/activity/activity.routes';
 import authRoutes from './modules/auth/auth.routes';
 import boardRoutes from './modules/board/board.routes';
@@ -92,6 +93,8 @@ export function createApp() {
       credentials: true,
     })
   );
+  // CORS khong chan request GHI duoc gui tu trang la (chi chan doc ket qua) -> tra 403 som, truoc moi route
+  app.use(originGuard(env.corsOrigins));
 
   // Doc du lieu JSON gui len (gioi han 1mb de tranh request qua lon)
   // Chi nhan JSON (va multipart o cac route upload, do multer xu ly rieng). KHONG bat urlencoded: khong

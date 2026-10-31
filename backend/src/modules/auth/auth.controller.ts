@@ -29,21 +29,25 @@ import type {
 
 const TOKEN_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 ngay
 
+// SameSite=None bi trinh duyet bo qua neu thieu Secure -> bat Secure ca khi chua dat NODE_ENV=production
+const TOKEN_COOKIE_SECURE = env.isProduction || env.cookieSameSite === 'none';
+
 function tokenCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'lax',
+    secure: TOKEN_COOKIE_SECURE,
+    sameSite: env.cookieSameSite,
     maxAge: TOKEN_COOKIE_MAX_AGE_MS,
   };
 }
 
-// Khi xoa cookie khong duoc truyen maxAge (Express 5 canh bao deprecated)
+// Khi xoa cookie khong duoc truyen maxAge (Express 5 canh bao deprecated).
+// sameSite / secure phai GIONG luc dat, neu khong trinh duyet khong xoa dung cookie.
 function clearTokenCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'lax',
+    secure: TOKEN_COOKIE_SECURE,
+    sameSite: env.cookieSameSite,
   };
 }
 

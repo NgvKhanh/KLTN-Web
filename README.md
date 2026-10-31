@@ -187,6 +187,7 @@ Chạy trong `backend/`. Cả hai script từ chối chạy khi `NODE_ENV=produc
 | `CHAT_ACTIONS` | | Cho chatbot v2 **thực hiện** thao tác (tạo thẻ, đổi cột, xoá...). Mặc định bật ở development / test, **tắt ở production** |
 | `CHAT_AUTO_EXECUTE` | | Cho thao tác đơn giản, rõ ràng tự chạy không cần bấm "Áp dụng". Mặc định như `CHAT_ACTIONS` |
 | `TRUST_PROXY` | | Số cấp reverse proxy tin cậy (thường `1`) khi chạy sau nginx / Cloudflare... Để trống = không tin proxy nào. Quên đặt khi có proxy thì mọi giới hạn theo IP (đăng nhập, đăng ký) gộp chung cả người dùng |
+| `COOKIE_SAMESITE` | | `lax` (mặc định), `strict` hoặc `none`. Đặt `none` khi frontend và backend ở hai tên miền khác nhau (vd Vercel + Render); cookie khi đó luôn kèm Secure, request ghi và kết nối socket từ nguồn ngoài `CORS_ORIGIN` bị chặn. Safari không đăng nhập được ở chế độ này |
 
 Đổi nhà cung cấp LLM chỉ cần đổi ba biến `AI_*`. Trong `.env.example` có sẵn cấu hình mẫu cho Gemini, Groq, OpenRouter, Mistral và GitHub Models.
 

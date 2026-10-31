@@ -24,12 +24,12 @@ async function startServer() {
   baseUrl = `http://localhost:${port}`;
 }
 
-function connect(cookie: string): Promise<ClientSocket> {
+function connect(cookie: string, origin?: string): Promise<ClientSocket> {
   return new Promise((resolve, reject) => {
     const s = ioClient(baseUrl, {
       path: '/socket.io',
       transports: ['websocket'],
-      extraHeaders: { Cookie: cookie },
+      extraHeaders: origin ? { Cookie: cookie, Origin: origin } : { Cookie: cookie },
       reconnection: false,
       forceNew: true,
       timeout: 4000,
@@ -221,5 +221,18 @@ describe('#1 (vong 3) cac duong mat quyen khac cung phai don socket khoi phong',
     expect(received).toBe(false);
     expect(s.connected).toBe(true);
     s.close();
+  });
+});
+
+// Cookie SameSite=None (frontend va backend khac ten mien): trang la mo duoc socket bang cookie cua nguoi dung
+describe('Socket.IO chi nhan ket noi tu Origin trong CORS_ORIGIN', () => {
+  // Gop 1 test, 1 tai khoan: tep nay dang ky nhieu user, them nua se cham gioi han dang ky (429)
+  it('Origin la frontend -> ket noi duoc; Origin la trang la -> bi tu choi du cookie hop le', async () => {
+    await startServer();
+    const user = await makeUser();
+    const s = await connect(user.cookie, 'http://localhost:5173');
+    expect(s.connected).toBe(true);
+    s.close();
+    await expect(connect(user.cookie, 'https://trang-la.example')).rejects.toThrow(/origin not allowed/);
   });
 });

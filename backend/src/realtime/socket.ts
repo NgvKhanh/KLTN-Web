@@ -2,6 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import { env } from '../config/env';
 import { prisma } from '../config/prisma';
+import { isAllowedOrigin } from '../middleware/originGuard.middleware';
 import { verifyToken } from '../utils/jwt';
 
 // Cac su kien server -> client
@@ -115,6 +116,11 @@ export function initRealtime(httpServer: HttpServer): void {
   // khong con ket noi duoc socket moi nao nua, giong REST).
   io.use(async (socket, next) => {
     try {
+      // Ket noi WebSocket KHONG qua CORS: voi cookie SameSite=None, trang la mo duoc socket bang cookie cua
+      // nguoi dung va nghe thong bao cua ho -> chi nhan Origin nam trong CORS_ORIGIN (nhu originGuard cua REST)
+      if (!isAllowedOrigin(socket.handshake.headers.origin, env.corsOrigins)) {
+        return next(new Error('origin not allowed'));
+      }
       const token = tokenFromHandshake(socket);
       if (!token) return next(new Error('unauthorized'));
       const payload = verifyToken(token);
