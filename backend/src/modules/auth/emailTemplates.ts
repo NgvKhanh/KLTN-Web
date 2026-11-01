@@ -53,6 +53,28 @@ export function resetPasswordEmail(input: {
   };
 }
 
+/** Tai khoan dang ky bang Google (chua co mat khau) bam "Quen mat khau": dat mat khau lan dau. */
+export function setPasswordEmail(input: {
+  name: string;
+  url: string;
+  expiresInMinutes: number;
+}): { subject: string; html: string } {
+  const { name, url, expiresInMinutes } = input;
+  return {
+    subject: 'Dat mat khau cho tai khoan TaskFlow',
+    html: layout(`
+      <p>Chao ${escapeHtml(name)},</p>
+      <p>Tai khoan cua ban dang dang nhap bang Google va chua co mat khau.
+         Bam nut duoi day de tao mat khau, sau do ban co the dang nhap bang email + mat khau:</p>
+      <p style="margin:20px 0">${button(url, 'Dat mat khau')}</p>
+      <p style="color:#64748b">Lien ket co hieu luc trong ${expiresInMinutes} phut.
+         Dang nhap bang Google van dung duoc nhu cu. Neu ban khong yeu cau, hay bo qua email nay.</p>
+      <p style="color:#94a3b8;font-size:12px;word-break:break-all">
+         Neu nut khong hoat dong, sao chep dia chi sau vao trinh duyet:<br>${url}</p>
+    `),
+  };
+}
+
 export function verifyEmailEmail(input: {
   name: string;
   url: string;

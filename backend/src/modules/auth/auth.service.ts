@@ -10,7 +10,11 @@ import { signToken } from '../../utils/jwt';
 import { comparePassword, hashPassword } from '../../utils/password';
 import { createPersonalWorkspace } from '../workspace/workspace.service';
 import { consumeAuthToken, createAuthToken } from './authToken.service';
-import { resetPasswordEmail, verifyEmailEmail } from './emailTemplates';
+import {
+  resetPasswordEmail,
+  setPasswordEmail,
+  verifyEmailEmail,
+} from './emailTemplates';
 import type {
   ChangePasswordInput,
   ForgotPasswordInput,
@@ -354,11 +358,16 @@ export async function changeUserPassword(
 }
 
 /**
- * Quen mat khau: neu email ton tai (va la tai khoan co mat khau) thi gui mail
- * chua link dat lai. Ham nay KHONG bao gio bao "email khong ton tai" -> tranh
- * lo danh sach email da dang ky. Controller luon tra ve cung mot thong bao.
+ * Quen mat khau: neu email ton tai thi gui mail chua link dat mat khau. Tai khoan
+ * dang ky bang Google (chua co mat khau) nhan mail "Dat mat khau" thay cho "Dat lai
+ * mat khau" - dat xong van dang nhap Google duoc (googleId giu nguyen).
+ * Ham nay KHONG bao gio bao "email khong ton tai" -> tranh lo danh sach email da
+ * dang ky. Controller luon tra ve cung mot thong bao.
  *
- * Tra ve previewUrl (link xem mail Ethereal) khi chay dev, de tien kiem thu.
+ * Production: token tao TRUOC khi tra loi, buoc GUI chay nen (nhu dang ky) - cong SMTP
+ * bi chan khong lam treo request, va email da dang ky khong tra loi cham hon email chua
+ * dang ky (khong do duoc qua thoi gian phan hoi).
+ * Dev: cho gui xong de tra previewUrl (link xem mail Ethereal), tien kiem thu.
  */
 export async function requestPasswordReset(
   input: ForgotPasswordInput
@@ -368,7 +377,7 @@ export async function requestPasswordReset(
     select: { id: true, name: true, email: true, passwordHash: true },
   });
 
-  // Khong co user, hoac tai khoan chi dang nhap Google -> im lang bo qua
+  // Khong co user -> im lang bo qua
   if (!user) {
     return { previewUrl: null };
   }
@@ -379,15 +388,26 @@ export async function requestPasswordReset(
     PASSWORD_RESET_TTL_MS
   );
   const url = `${env.frontendUrl}/reset-password?token=${rawToken}`;
+  const mail = {
+    name: user.name,
+    url,
+    expiresInMinutes: PASSWORD_RESET_TTL_MS / 60000,
+  };
+  const { subject, html } = user.passwordHash
+    ? resetPasswordEmail(mail)
+    : setPasswordEmail(mail);
+
+  const sending = sendMail({ to: user.email, subject, html });
+  if (env.isProduction) {
+    void sending.catch((err: unknown) => {
+      console.error('[auth] Gui mail dat lai mat khau that bai:', err);
+    });
+    return { previewUrl: null };
+  }
 
   try {
-    const { subject, html } = resetPasswordEmail({
-      name: user.name,
-      url,
-      expiresInMinutes: PASSWORD_RESET_TTL_MS / 60000,
-    });
-    const { previewUrl } = await sendMail({ to: user.email, subject, html });
-    return { previewUrl: env.isProduction ? null : previewUrl };
+    const { previewUrl } = await sending;
+    return { previewUrl };
   } catch (err) {
     console.error('[auth] Gui mail dat lai mat khau that bai:', err);
     return { previewUrl: null };
