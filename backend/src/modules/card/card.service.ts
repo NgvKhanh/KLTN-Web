@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { getCardDragLock } from '../../realtime/cardDragLock';
 import { emitToBoard } from '../../realtime/socket';
 import { AppError } from '../../utils/AppError';
 import { maskEmails } from '../../utils/privacy';
@@ -774,9 +775,25 @@ export async function moveCard(
   cardId: string,
   input: MoveCardInput,
   // notifyDone: goi tu updateCard (doi tay trang thai) -> gui "da hoan thanh"
-  opts: { notifyDone?: boolean } = {}
+  // respectDragLock: goi tu API keo tha / nut "Di chuyen" -> tu choi neu NGUOI KHAC dang keo the nay
+  opts: { notifyDone?: boolean; respectDragLock?: boolean } = {}
 ) {
   const card = await assertCardAccess(userId, cardId);
+
+  // Kiem tra SAU quyen truy cap: nguoi ngoai bang khong do duoc ai dang keo the nao
+  if (opts.respectDragLock) {
+    const lock = getCardDragLock(cardId);
+    if (lock && lock.userId !== userId) {
+      throw new AppError(
+        `Thẻ đang được ${lock.userName || 'người khác'} kéo thả, vui lòng thử lại sau`,
+        409,
+        {
+          code: 'CARD_LOCKED',
+          data: { lockedBy: { userId: lock.userId, name: lock.userName } },
+        }
+      );
+    }
+  }
 
   const targetList = await prisma.list.findFirst({
     where: { id: input.listId, deletedAt: null, archivedAt: null },

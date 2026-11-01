@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useRef, useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   CollisionDetection,
   DragEndEvent,
@@ -18,7 +18,23 @@ vi.mock('../../lib/api/list', () => ({
   reorderList: vi.fn(),
 }));
 
+vi.mock('../../lib/cardDragLock', () => ({
+  CARD_DRAG_LOCK_RENEW_MS: 20_000,
+  acquireCardDragLock: vi.fn().mockResolvedValue(null),
+  releaseCardDragLock: vi.fn(),
+}));
+
 import { createCollisionDetection, useBoardDnd } from './useBoardDnd';
+import {
+  acquireCardDragLock,
+  releaseCardDragLock,
+  type CardDragLock,
+} from '../../lib/cardDragLock';
+
+const acquireMock = vi.mocked(acquireCardDragLock);
+const releaseMock = vi.mocked(releaseCardDragLock);
+
+const NO_LOCKS: ReadonlyMap<string, CardDragLock> = new Map();
 
 function card(id: string, listId: string): Card {
   return {
@@ -58,13 +74,15 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function useHarness(initial: BoardList[]) {
+function useHarness(initial: BoardList[], cardLocks: ReadonlyMap<string, CardDragLock> = NO_LOCKS) {
   const [lists, setLists] = useState(initial);
   const [listsError, setListsError] = useState<string | null>(null);
   const draggingRef = useRef(false);
   const pendingReloadRef = useRef(false);
   const reloadLists = vi.fn();
   const dnd = useBoardDnd({
+    boardId: 'b1',
+    cardLocks,
     lists,
     setLists,
     reloadLists,
@@ -307,5 +325,123 @@ describe('createCollisionDetection: keo theo vi tri con tro', () => {
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.every((h) => String(h.id).startsWith('list-'))).toBe(true);
     expect(hits[0]?.id).toBe('list-L2');
+  });
+});
+
+// Khoa keo tha: dang co nguoi keo 1 the thi nguoi khac khong keo / luu duoc the do.
+describe('useBoardDnd: khoa keo tha the', () => {
+  const lockByBinh: CardDragLock = { cardId: 'A', userId: 'u2', userName: 'Bình' };
+  function twoLists(): BoardList[] {
+    return [
+      { id: 'L1', boardId: 'b1', name: 'L1', position: 0, status: null, createdAt: '', updatedAt: '', cards: [card('A', 'L1'), card('B', 'L1')] },
+      { id: 'L2', boardId: 'b1', name: 'L2', position: 1, status: null, createdAt: '', updatedAt: '', cards: [] },
+    ];
+  }
+  const idsOf = (lists: BoardList[], listId: string) =>
+    lists.find((l) => l.id === listId)!.cards.map((c) => c.id);
+
+  beforeEach(() => {
+    moveCardMock.mockReset();
+    acquireMock.mockReset();
+    acquireMock.mockResolvedValue(null);
+    releaseMock.mockReset();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('bat dau keo -> xin khoa; chi nha khoa SAU KHI da luu xong vi tri moi', async () => {
+    const { promise: saving, resolve: saved } = deferred<Card>();
+    moveCardMock.mockReturnValueOnce(saving);
+    const { result } = renderHook(() => useHarness(twoLists()));
+
+    act(() => result.current.handleDragStart(cardDrag('A')));
+    expect(acquireMock).toHaveBeenCalledWith('b1', 'A');
+    act(() => result.current.handleDragOver(overOnList('A', 'L2')));
+
+    let endPromise!: Promise<void>;
+    act(() => {
+      endPromise = result.current.handleDragEnd(endOnList('A', 'L2'));
+    });
+    // Dang luu: van giu khoa
+    expect(releaseMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      saved(card('A', 'L2'));
+      await endPromise;
+    });
+    expect(releaseMock).toHaveBeenCalledWith('A');
+    expect(idsOf(result.current.lists, 'L2')).toEqual(['A']);
+  });
+
+  it('server bao nguoi khac dang giu the -> tha tay: KHONG luu, the ve cho cu, bao ai dang keo', async () => {
+    acquireMock.mockResolvedValueOnce(lockByBinh);
+    const { result } = renderHook(() => useHarness(twoLists()));
+
+    await act(async () => {
+      result.current.handleDragStart(cardDrag('A'));
+    });
+    act(() => result.current.handleDragOver(overOnList('A', 'L2')));
+    await act(async () => {
+      await result.current.handleDragEnd(endOnList('A', 'L2'));
+    });
+
+    expect(moveCardMock).not.toHaveBeenCalled();
+    expect(idsOf(result.current.lists, 'L1')).toEqual(['A', 'B']);
+    expect(idsOf(result.current.lists, 'L2')).toEqual([]);
+    expect(result.current.listsError).toContain('Bình đang kéo thẻ này');
+    // Khong giu khoa thi khong nha (khong duoc nha ho khoa cua Binh)
+    expect(releaseMock).not.toHaveBeenCalled();
+  });
+
+  it('the vua bi khoa truoc khi bat dau keo -> khong xin khoa nua, tha tay cung khong luu', async () => {
+    const { result } = renderHook(() =>
+      useHarness(twoLists(), new Map([['A', lockByBinh]]))
+    );
+
+    act(() => result.current.handleDragStart(cardDrag('A')));
+    expect(acquireMock).not.toHaveBeenCalled();
+    act(() => result.current.handleDragOver(overOnList('A', 'L2')));
+    await act(async () => {
+      await result.current.handleDragEnd(endOnList('A', 'L2'));
+    });
+
+    expect(moveCardMock).not.toHaveBeenCalled();
+    expect(idsOf(result.current.lists, 'L1')).toEqual(['A', 'B']);
+  });
+
+  it('huy keo -> nha khoa ngay', () => {
+    const { result } = renderHook(() => useHarness(twoLists()));
+    act(() => result.current.handleDragStart(cardDrag('A')));
+    act(() => result.current.handleDragCancel());
+    expect(releaseMock).toHaveBeenCalledWith('A');
+  });
+
+  it('keo lau -> gia han khoa moi 20 giay; ket thuc keo -> thoi gia han', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useHarness(twoLists()));
+
+    act(() => result.current.handleDragStart(cardDrag('A')));
+    expect(acquireMock).toHaveBeenCalledTimes(1);
+    act(() => {
+      vi.advanceTimersByTime(40_000);
+    });
+    expect(acquireMock).toHaveBeenCalledTimes(3);
+
+    act(() => result.current.handleDragCancel());
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(acquireMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('roi trang giua luc keo -> nha khoa va thoi gia han', () => {
+    vi.useFakeTimers();
+    const { result, unmount } = renderHook(() => useHarness(twoLists()));
+    act(() => result.current.handleDragStart(cardDrag('A')));
+    unmount();
+    expect(releaseMock).toHaveBeenCalledWith('A');
+    vi.advanceTimersByTime(60_000);
+    expect(acquireMock).toHaveBeenCalledTimes(1);
   });
 });

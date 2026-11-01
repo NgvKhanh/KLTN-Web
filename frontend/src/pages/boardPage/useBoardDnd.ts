@@ -26,6 +26,12 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { moveCard } from '../../lib/api/card';
 import { reorderList } from '../../lib/api/list';
+import {
+  CARD_DRAG_LOCK_RENEW_MS,
+  acquireCardDragLock,
+  releaseCardDragLock,
+  type CardDragLock,
+} from '../../lib/cardDragLock';
 import { getErrorMessage } from '../../lib/errorMessage';
 import type { Card } from '../../types/card';
 import type { BoardList } from '../../types/list';
@@ -96,6 +102,9 @@ export function createCollisionDetection(
 }
 
 interface Options {
+  boardId: string | undefined;
+  // Cac the dang bi NGUOI KHAC keo (useCardDragLocks)
+  cardLocks: ReadonlyMap<string, CardDragLock>;
   lists: BoardList[];
   setLists: Dispatch<SetStateAction<BoardList[]>>;
   reloadLists: () => void;
@@ -110,6 +119,8 @@ interface Options {
  * khi huy / tha hut, luu that bai thi tra ve trang thai truoc do roi dong bo lai.
  */
 export function useBoardDnd({
+  boardId,
+  cardLocks,
   lists,
   setLists,
   reloadLists,
@@ -128,6 +139,13 @@ export function useBoardDnd({
   // phuc nham snapshot cua B. Chi thao tac len listsSnapshotRef sau await neu
   // dragGenerationRef van con dung THE HE da ghi nhan luc bat dau luot keo do.
   const dragGenerationRef = useRef(0);
+  // Khoa keo tha cua luot keo the HIEN TAI: the nao, co bi tu choi khong (nguoi khac
+  // dang giu - biet ngay luc bat dau hoac khi server tra loi), hen gio gia han khoa.
+  const dragLockRef = useRef<{
+    cardId: string;
+    deniedBy: CardDragLock | null;
+    renew: ReturnType<typeof setInterval> | null;
+  } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -183,6 +201,43 @@ export function useBoardDnd({
     return { status: toList.status, isDone: toList.status === 'DONE' };
   };
 
+  // Bat dau keo the: xin khoa + gia han dinh ky. The vua bi nguoi khac khoa (giua luc
+  // nhan chuot va luc du 5px de bat dau keo) thi khong xin nua, chi ghi nhan bi tu choi.
+  const startCardLock = (cardId: string) => {
+    stopCardLock();
+    const state = {
+      cardId,
+      deniedBy: cardLocks.get(cardId) ?? null,
+      renew: null as ReturnType<typeof setInterval> | null,
+    };
+    dragLockRef.current = state;
+    if (state.deniedBy || !boardId) return;
+    const ask = () => {
+      void acquireCardDragLock(boardId, cardId).then((other) => {
+        // Tra loi den muon cua luot keo cu thi bo qua
+        if (other && dragLockRef.current === state) state.deniedBy = other;
+      });
+    };
+    ask();
+    state.renew = setInterval(ask, CARD_DRAG_LOCK_RENEW_MS);
+  };
+
+  // Ket thuc luot keo the: thoi gia han. Tra ve khoa cua luot keo do de nguoi goi
+  // nha (releaseHeldLock) dung luc - sau khi da luu xong vi tri moi.
+  const stopCardLock = () => {
+    const state = dragLockRef.current;
+    dragLockRef.current = null;
+    if (state?.renew) clearInterval(state.renew);
+    return state;
+  };
+
+  const releaseHeldLock = (state: ReturnType<typeof stopCardLock>) => {
+    if (state && !state.deniedBy) releaseCardDragLock(state.cardId);
+  };
+
+  // Roi trang bang giua luc keo: thoi gia han + nha khoa
+  useEffect(() => () => releaseHeldLock(stopCardLock()), []);
+
   const endDragCursor = () => {
     document.body.style.cursor = '';
   };
@@ -220,6 +275,7 @@ export function useBoardDnd({
       // Giu nguyen trang thai truoc khi keo de con khoi phuc neu huy / tha hut
       dragGenerationRef.current += 1;
       listsSnapshotRef.current = lists;
+      startCardLock(active.id as string);
     }
   }
 
@@ -287,6 +343,7 @@ export function useBoardDnd({
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     const type = active.data.current?.type;
+    const cardLock = type === 'card' ? stopCardLock() : null;
     setActiveCard(null);
     setActiveList(null);
     resetCollisionState();
@@ -295,6 +352,7 @@ export function useBoardDnd({
     // Tha ra ngoai (khong co diem tha) -> tra state ve nhu truoc khi keo
     if (!over) {
       restoreDragSnapshot();
+      releaseHeldLock(cardLock);
       return;
     }
 
@@ -321,6 +379,14 @@ export function useBoardDnd({
 
     // ---- Keo tha the ----
     if (type === 'card') {
+      // Nguoi khac dang keo the nay: khong luu, tra the ve cho cu
+      if (cardLock?.deniedBy) {
+        restoreDragSnapshot();
+        setListsError(
+          `${cardLock.deniedBy.userName || 'Người khác'} đang kéo thẻ này, hãy thử lại sau.`
+        );
+        return;
+      }
       const myDragGeneration = dragGenerationRef.current;
       const activeId = active.id as string;
       const overId = over.id as string;
@@ -330,12 +396,14 @@ export function useBoardDnd({
           : (listIdFromDnd(overId) ?? undefined);
       if (!toListId) {
         restoreDragSnapshot();
+        releaseHeldLock(cardLock);
         return;
       }
 
       const toList = lists.find((l) => l.id === toListId);
       if (!toList) {
         restoreDragSnapshot();
+        releaseHeldLock(cardLock);
         return;
       }
 
@@ -374,11 +442,15 @@ export function useBoardDnd({
         }
         // Luon dong bo lai server du co con la the he nay hay khong.
         reloadLists();
+      } finally {
+        // Giu khoa toi khi luu xong: nha som thi nguoi khac co the keo the o vi tri cu ngay luc dang luu
+        releaseHeldLock(cardLock);
       }
     }
   }
 
   function handleDragCancel() {
+    releaseHeldLock(stopCardLock());
     setActiveCard(null);
     setActiveList(null);
     resetCollisionState();

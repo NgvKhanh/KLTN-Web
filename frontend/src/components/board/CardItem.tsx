@@ -5,6 +5,7 @@ import { assetUrl } from '../../lib/assets';
 import { shouldShowCardStatus } from '../../lib/cardStatus';
 import type { Card, CardStatus } from '../../types/card';
 import Avatar from '../Avatar';
+import { useCardDragLock } from './CardDragLockContext';
 import { useCardHighlight } from './CardHighlightContext';
 import StatusBadge from './StatusBadge';
 
@@ -200,6 +201,8 @@ export default function CardItem({
   overlay,
   readOnly = false,
 }: Props) {
+  const dragLock = useCardDragLock(card.id);
+  const lockedBy = overlay ? undefined : dragLock;
   const {
     attributes,
     listeners,
@@ -211,7 +214,9 @@ export default function CardItem({
   } = useSortable({
     id: card.id,
     data: { type: 'card', listId: card.listId },
-    disabled: overlay || readOnly,
+    // The dang bi NGUOI KHAC keo: khong cam len duoc, nhung van la cho tha hop le cho the khac
+    disabled:
+      overlay || readOnly ? true : lockedBy ? { draggable: true, droppable: false } : false,
   });
   const highlight = useCardHighlight(card.id);
   // Ham cua cha tao lai moi lan BoardPage ve; giu mot ham co dinh de CardBody (memo) khong phai ve lai theo.
@@ -252,6 +257,7 @@ export default function CardItem({
       {...attributes}
       {...listeners}
       onClick={() => onOpen?.(card.id)}
+      title={lockedBy ? `${lockedBy.userName || 'Người khác'} đang kéo thẻ này` : undefined}
       className={
         // shrink-0: giu nguyen chieu cao that cua the. Neu khong, khi cot cham
         // tran chieu cao thi flexbox se bop det cac the lai thay vi cho cuon.
@@ -259,13 +265,25 @@ export default function CardItem({
           ? 'shrink-0 rounded-lg border-2 border-dashed border-slate-300 bg-slate-200/60 text-sm dark:border-slate-600 dark:bg-slate-900/40 [&_*]:invisible'
           : `group/card relative shrink-0 cursor-pointer overflow-hidden rounded-lg bg-white text-sm shadow-sm ring-1 ring-black/[0.04] transition-shadow hover:shadow-md dark:bg-slate-700 dark:ring-white/10${
               highlight?.enter ? ' tf-card-in' : ''
-            }${highlight?.flash ? ' tf-card-flash' : ''}`
+            }${highlight?.flash ? ' tf-card-flash' : ''}${
+              lockedBy ? ' cursor-not-allowed opacity-80 ring-2 ring-amber-400 dark:ring-amber-500' : ''
+            }`
       }
     >
       {!isDragging && hasCover && <CardCover card={card} />}
       <div className="flex gap-2 px-3 py-2">
         <CardBody card={card} listStatus={listStatus} onToggleDone={handleToggleDone} />
       </div>
+
+      {lockedBy && (
+        <p className="flex items-center gap-1 px-3 pb-2 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+          <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="4" y="11" width="16" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 018 0v4" />
+          </svg>
+          <span className="truncate">{lockedBy.userName || 'Người khác'} đang kéo</span>
+        </p>
+      )}
 
       {onRequestDelete && (
         <button

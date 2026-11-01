@@ -108,7 +108,8 @@ export const moveCardHandler = asyncHandler(
     const card = await moveCard(
       requireUserId(req),
       req.params.cardId as string,
-      req.body as MoveCardInput
+      req.body as MoveCardInput,
+      { respectDragLock: true }
     );
     res.json({ success: true, message: 'Da di chuyen the', data: { card } });
   }

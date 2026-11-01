@@ -3,7 +3,16 @@ import { Server, type Socket } from 'socket.io';
 import { env } from '../config/env';
 import { prisma } from '../config/prisma';
 import { isAllowedOrigin } from '../middleware/originGuard.middleware';
+import { assertBoardAccess } from '../modules/board/board.service';
 import { verifyToken } from '../utils/jwt';
+import {
+  acquireCardDragLock,
+  clearCardDragLocks,
+  listBoardCardDragLocks,
+  releaseCardDragLock,
+  releaseSocketCardDragLocks,
+  type CardDragLock,
+} from './cardDragLock';
 
 // Cac su kien server -> client
 export type RealtimeEvent =
@@ -13,6 +22,7 @@ export type RealtimeEvent =
   | 'board:meta-changed' // ten bang / mau / anh nen / kha nang hien thi / chu bang doi
   | 'board:removed' // nguoi nhan vua bi xoa khoi bang (gui vao phong user)
   | 'board:presence' // danh sach userId dang MO bang nay (thay doi khi co nguoi vao/ra)
+  | 'board:card-locks' // cac the dang bi ai do keo tha (khoa keo tha, xem cardDragLock.ts)
   | 'board:access-changed' // danh sach bang nguoi nhan xem duoc co the doi (gui vao phong user)
   | 'workspace:changed' // khong gian / thanh vien khong gian doi (gui vao phong user)
   | 'notification:new'; // co thong bao moi (gui vao phong user)
@@ -86,6 +96,39 @@ async function broadcastPresence(boardId: string): Promise<void> {
   }
 }
 
+// Khoa keo tha gui xuong client: bo socketId (thong tin noi bo cua server)
+function publicLock(lock: CardDragLock) {
+  return { cardId: lock.cardId, userId: lock.userId, userName: lock.userName };
+}
+
+function cardLocksPayload(boardId: string) {
+  return { boardId, locks: listBoardCardDragLocks(boardId).map(publicLock) };
+}
+
+// Bao cho ca phong bang biet nhung the nao dang bi khoa keo tha
+function broadcastCardLocks(boardId: string): void {
+  if (!io) return;
+  try {
+    io.to(boardRoom(boardId)).emit('board:card-locks', cardLocksPayload(boardId));
+  } catch {
+    // bo qua
+  }
+}
+
+// Nha moi khoa keo tha cua 1 socket (tren 1 bang, hoac moi bang) roi bao lai cho cac bang bi anh huong
+function releaseLocksOfSocket(socketId: string, boardId?: string): void {
+  const boardIds = new Set(
+    releaseSocketCardDragLocks(socketId, boardId).map((l) => l.boardId)
+  );
+  for (const id of boardIds) broadcastCardLocks(id);
+}
+
+type DragStartAck = (res: {
+  ok: boolean;
+  error?: 'INVALID' | 'FORBIDDEN' | 'NOT_FOUND' | 'LOCKED';
+  lock?: ReturnType<typeof publicLock>;
+}) => void;
+
 // Doc cookie "token" tu chuoi header Cookie (tu parse, khong can thu vien)
 function tokenFromHandshake(socket: Socket): string | null {
   const raw = socket.handshake.headers.cookie;
@@ -126,13 +169,14 @@ export function initRealtime(httpServer: HttpServer): void {
       const payload = verifyToken(token);
       const user = await prisma.user.findFirst({
         where: { id: payload.userId, deletedAt: null },
-        select: { id: true, tokenVersion: true },
+        select: { id: true, tokenVersion: true, name: true },
       });
       if (!user) return next(new Error('unauthorized'));
       if ((payload.tokenVersion ?? -1) !== user.tokenVersion) {
         return next(new Error('unauthorized'));
       }
       socket.data.userId = user.id;
+      socket.data.userName = user.name;
       next();
     } catch {
       next(new Error('unauthorized'));
@@ -141,6 +185,7 @@ export function initRealtime(httpServer: HttpServer): void {
 
   io.on('connection', (socket) => {
     const userId = socket.data.userId as string;
+    const userName = (socket.data.userName as string | undefined) ?? '';
     // Phong rieng cua nguoi dung -> nhan thong bao / su kien bi xoa khoi bang
     void socket.join(userRoom(userId));
 
@@ -150,6 +195,8 @@ export function initRealtime(httpServer: HttpServer): void {
       if (await canAccessBoardRoom(userId, boardId)) {
         await socket.join(boardRoom(boardId));
         void broadcastPresence(boardId);
+        // Nguoi moi vao (hoac vua ket noi lai) can biet ngay the nao dang bi khoa
+        socket.emit('board:card-locks', cardLocksPayload(boardId));
       }
     });
 
@@ -157,7 +204,86 @@ export function initRealtime(httpServer: HttpServer): void {
       if (typeof boardId === 'string' && boardId) {
         void socket.leave(boardRoom(boardId));
         void broadcastPresence(boardId);
+        releaseLocksOfSocket(socket.id, boardId);
       }
+    });
+
+    // ---- Khoa keo tha the ----
+    // Xu ly xin / nha khoa cua socket nay THEO DUNG THU TU gui len. Xin khoa phai doc CSDL (bat dong bo):
+    // khong xep hang thi 'card:drag-end' gui sau co the chay xong TRUOC, roi khoa moi duoc cap -> the bi
+    // khoa treo cho toi khi het han du nguoi do da tha tay.
+    let lockChain: Promise<void> = Promise.resolve();
+    const inOrder = (task: () => Promise<void> | void) => {
+      lockChain = lockChain.then(task).catch(() => {});
+    };
+
+    // Bat dau keo 1 the: { boardId, cardId } + ack({ ok, error?, lock? }). Goi lai trong luc keo = gia han.
+    socket.on('card:drag-start', (payload: unknown, ack?: unknown) => {
+      const reply: DragStartAck =
+        typeof ack === 'function' ? (ack as DragStartAck) : () => {};
+      const { boardId, cardId } = (payload ?? {}) as {
+        boardId?: unknown;
+        cardId?: unknown;
+      };
+      if (
+        typeof boardId !== 'string' ||
+        !boardId ||
+        typeof cardId !== 'string' ||
+        !cardId
+      ) {
+        reply({ ok: false, error: 'INVALID' });
+        return;
+      }
+      inOrder(async () => {
+        // Phai dang o trong phong bang (da qua kiem tra quyen xem), the thuoc bang nay, va co QUYEN SUA
+        // (VIEWER / khach xem bang cong khai khong duoc khoa the cua nguoi khac)
+        if (!socket.rooms.has(boardRoom(boardId))) {
+          reply({ ok: false, error: 'FORBIDDEN' });
+          return;
+        }
+        try {
+          const card = await prisma.card.findFirst({
+            where: { id: cardId, deletedAt: null, archivedAt: null, list: { boardId } },
+            select: { id: true },
+          });
+          if (!card) {
+            reply({ ok: false, error: 'NOT_FOUND' });
+            return;
+          }
+          await assertBoardAccess(userId, boardId);
+        } catch {
+          reply({ ok: false, error: 'FORBIDDEN' });
+          return;
+        }
+        // Mat ket noi trong luc doc CSDL: khong cap khoa cho socket da chet (se khong ai nha)
+        if (!socket.connected) return;
+
+        const result = acquireCardDragLock(
+          { cardId, boardId, userId, userName, socketId: socket.id },
+          (expired) => broadcastCardLocks(expired.boardId)
+        );
+        if (!result.ok) {
+          reply({ ok: false, error: 'LOCKED', lock: publicLock(result.lock) });
+          return;
+        }
+        reply({ ok: true });
+        broadcastCardLocks(boardId);
+      });
+    });
+
+    // Tha tay / huy keo: { cardId }. Chi socket dang giu khoa moi nha duoc.
+    socket.on('card:drag-end', (payload: unknown) => {
+      const { cardId } = (payload ?? {}) as { cardId?: unknown };
+      if (typeof cardId !== 'string' || !cardId) return;
+      inOrder(() => {
+        const released = releaseCardDragLock(cardId, socket.id);
+        if (released) broadcastCardLocks(released.boardId);
+      });
+    });
+
+    // Da ngat han (socket.connected = false): nha moi khoa con giu de the khong bi khoa treo
+    socket.on('disconnect', () => {
+      releaseLocksOfSocket(socket.id);
     });
 
     // Tab dong / mat ket noi: socket sap roi tat ca phong -> cap nhat presence
@@ -232,6 +358,7 @@ export async function evictUserFromBoardRoom(
     for (const s of sockets) {
       if (s.data.userId === userId) {
         void s.leave(boardRoom(boardId));
+        releaseLocksOfSocket(s.id, boardId);
       }
     }
     void broadcastPresence(boardId);
@@ -266,6 +393,7 @@ export async function reconcileBoardRoomAccess(
     for (const s of checks) {
       if (!s) continue;
       void s.leave(boardRoom(boardId));
+      releaseLocksOfSocket(s.id, boardId);
       evictedAny = true;
     }
     if (evictedAny) void broadcastPresence(boardId);
@@ -277,4 +405,5 @@ export async function reconcileBoardRoomAccess(
 export function shutdownRealtime(): void {
   io?.close();
   io = null;
+  clearCardDragLocks();
 }

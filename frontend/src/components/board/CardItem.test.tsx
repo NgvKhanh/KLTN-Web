@@ -13,7 +13,9 @@ import {
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { CardDragLock } from '../../lib/cardDragLock';
 import type { Card } from '../../types/card';
+import { CardDragLockContext } from './CardDragLockContext';
 import CardItem from './CardItem';
 
 const card: Card = {
@@ -32,6 +34,7 @@ function renderCard(handlers: {
   onToggleDone?: (c: Card) => void;
   onRequestDelete?: (c: Card) => void;
   onDragStart?: () => void;
+  locks?: ReadonlyMap<string, CardDragLock>;
 }) {
   function Harness() {
     const sensors = useSensors(
@@ -39,16 +42,18 @@ function renderCard(handlers: {
       useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
     return (
-      <DndContext sensors={sensors} onDragStart={handlers.onDragStart ?? (() => {})}>
-        <SortableContext items={[card.id]} strategy={verticalListSortingStrategy}>
-          <CardItem
-            card={card}
-            onToggleDone={handlers.onToggleDone}
-            onRequestDelete={handlers.onRequestDelete}
-            onOpen={() => {}}
-          />
-        </SortableContext>
-      </DndContext>
+      <CardDragLockContext.Provider value={handlers.locks ?? new Map()}>
+        <DndContext sensors={sensors} onDragStart={handlers.onDragStart ?? (() => {})}>
+          <SortableContext items={[card.id]} strategy={verticalListSortingStrategy}>
+            <CardItem
+              card={card}
+              onToggleDone={handlers.onToggleDone}
+              onRequestDelete={handlers.onRequestDelete}
+              onOpen={() => {}}
+            />
+          </SortableContext>
+        </DndContext>
+      </CardDragLockContext.Provider>
     );
   }
   return render(<Harness />);
@@ -82,6 +87,37 @@ describe('CardItem - phim Enter tren cac nut ben trong the', () => {
     await user.keyboard('{Enter}');
 
     expect(onRequestDelete).toHaveBeenCalledTimes(1);
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+});
+
+describe('CardItem - the dang bi nguoi khac keo', () => {
+  const cardEl = () =>
+    screen.getByText('The A').closest('[aria-roledescription="sortable"]') as HTMLElement;
+
+  it('doi chung: the khong bi khoa -> nhan Space tren the thi bat dau keo', async () => {
+    const user = userEvent.setup();
+    const onDragStart = vi.fn();
+    renderCard({ onDragStart });
+
+    cardEl().focus();
+    await user.keyboard(' ');
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('bi khoa -> hien ai dang keo va KHONG bat dau keo duoc', async () => {
+    const user = userEvent.setup();
+    const onDragStart = vi.fn();
+    renderCard({
+      onDragStart,
+      locks: new Map([['c1', { cardId: 'c1', userId: 'u2', userName: 'Bình' }]]),
+    });
+
+    expect(screen.getByText('Bình đang kéo')).toBeInTheDocument();
+    expect(cardEl()).toHaveAttribute('title', 'Bình đang kéo thẻ này');
+
+    cardEl().focus();
+    await user.keyboard(' ');
     expect(onDragStart).not.toHaveBeenCalled();
   });
 });

@@ -42,6 +42,7 @@ import { ModalLoading } from '../components/PageLoading';
 import CardModalCrash from '../components/board/CardModalCrash';
 import ErrorBoundary from '../components/ErrorBoundary';
 import CardItem from '../components/board/CardItem';
+import { CardDragLockContext } from '../components/board/CardDragLockContext';
 import { CardHighlightContext } from '../components/board/CardHighlightContext';
 import ListColumn from '../components/board/ListColumn';
 import ListColumnOverlay from '../components/board/ListColumnOverlay';
@@ -98,6 +99,7 @@ import BoardVisibilityMenu from '../components/board/BoardVisibilityMenu';
 import type { Card, CardStatus } from '../types/card';
 import type { BoardList } from '../types/list';
 import { useBoardRealtime } from './boardPage/useBoardRealtime';
+import { useCardDragLocks } from './boardPage/useCardDragLocks';
 import { useCardHighlights } from './boardPage/useCardHighlights';
 import { useBoardShortcuts } from './boardPage/useBoardShortcuts';
 import { useStableCallback } from '../lib/useStableCallback';
@@ -283,6 +285,9 @@ export default function BoardPage() {
       .catch(logError('BoardPage: tai lai danh sach'));
   }
 
+  // Thẻ đang bị người khác kéo -> khoá, không cho mình kéo cùng lúc
+  const cardDragLocks = useCardDragLocks(boardId, user?.id);
+
   const {
     sensors,
     collisionDetection,
@@ -293,6 +298,8 @@ export default function BoardPage() {
     handleDragEnd,
     handleDragCancel,
   } = useBoardDnd({
+    boardId,
+    cardLocks: cardDragLocks,
     lists,
     setLists,
     reloadLists,
@@ -1194,52 +1201,54 @@ export default function BoardPage() {
         <BoardTableView lists={displayLists} onOpenCard={setOpenCardId} />
       ) : (
         <CardHighlightContext.Provider value={cardHighlights}>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={collisionDetection}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-            onDragCancel={handleDragCancel}
-          >
-            <div
-              className={`board-scroll flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-3 ${
-                activeCard || activeList ? 'tf-dragging select-none' : ''
-              }`}
+          <CardDragLockContext.Provider value={cardDragLocks}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={collisionDetection}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
-              <SortableContext
-                items={listDndIds}
-                strategy={horizontalListSortingStrategy}
+              <div
+                className={`board-scroll flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-3 ${
+                  activeCard || activeList ? 'tf-dragging select-none' : ''
+                }`}
               >
-                {displayLists.map((list) => (
-                  <ListColumn
-                    key={list.id}
-                    list={list}
-                    allLists={listOptions}
-                    readOnly={readOnly}
-                    onOpenCard={setOpenCardId}
-                    {...stableListHandlers}
-                  />
-                ))}
-              </SortableContext>
+                <SortableContext
+                  items={listDndIds}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  {displayLists.map((list) => (
+                    <ListColumn
+                      key={list.id}
+                      list={list}
+                      allLists={listOptions}
+                      readOnly={readOnly}
+                      onOpenCard={setOpenCardId}
+                      {...stableListHandlers}
+                    />
+                  ))}
+                </SortableContext>
 
-              {!readOnly && <AddListForm onAdd={handleAddList} />}
-            </div>
+                {!readOnly && <AddListForm onAdd={handleAddList} />}
+              </div>
 
-            <DragOverlay dropAnimation={dropAnimation}>
-              {activeCard ? (
-                <div className="w-64">
-                  <CardItem
-                    card={activeCard}
-                    listStatus={lists.find((l) => l.id === activeCard.listId)?.status ?? null}
-                    overlay
-                  />
-                </div>
-              ) : activeList ? (
-                <ListColumnOverlay list={activeList} />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+              <DragOverlay dropAnimation={dropAnimation}>
+                {activeCard ? (
+                  <div className="w-64">
+                    <CardItem
+                      card={activeCard}
+                      listStatus={lists.find((l) => l.id === activeCard.listId)?.status ?? null}
+                      overlay
+                    />
+                  </div>
+                ) : activeList ? (
+                  <ListColumnOverlay list={activeList} />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </CardDragLockContext.Provider>
         </CardHighlightContext.Provider>
       )}
 
