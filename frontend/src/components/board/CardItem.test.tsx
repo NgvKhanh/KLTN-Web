@@ -120,4 +120,32 @@ describe('CardItem - the dang bi nguoi khac keo', () => {
     await user.keyboard(' ');
     expect(onDragStart).not.toHaveBeenCalled();
   });
+
+  it('bi khoa -> con tro cam tren ca the (khong lan voi cursor-pointer), khong tick xong / luu tru duoc', async () => {
+    const user = userEvent.setup();
+    const onToggleDone = vi.fn();
+    renderCard({
+      onToggleDone,
+      onRequestDelete: () => {},
+      locks: new Map([['c1', { cardId: 'c1', userId: 'u2', userName: 'Bình' }]]),
+    });
+
+    const el = cardEl();
+    // Ca 2 lop cung co mat thi Tailwind de cursor-pointer thang (xep theo thu tu trong file CSS)
+    expect(el).toHaveClass('cursor-not-allowed', '[&_*]:cursor-not-allowed');
+    expect(el).not.toHaveClass('cursor-pointer');
+
+    const done = screen.getByRole('button', { name: 'Đánh dấu hoàn thành' });
+    expect(done).toBeDisabled();
+    await user.click(done);
+    expect(onToggleDone).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Lưu trữ thẻ' })).toBeNull();
+  });
+
+  it('khong bi khoa -> van la con tro ban tay nhu cu', () => {
+    renderCard({ onRequestDelete: () => {} });
+    expect(cardEl()).toHaveClass('cursor-pointer');
+    expect(cardEl()).not.toHaveClass('cursor-not-allowed');
+    expect(screen.getByRole('button', { name: 'Lưu trữ thẻ' })).toBeInTheDocument();
+  });
 });

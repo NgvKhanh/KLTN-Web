@@ -201,21 +201,49 @@ export function useBoardDnd({
     return { status: toList.status, isDone: toList.status === 'DONE' };
   };
 
+  // Luot keo bi tu choi dang cho huy (xem denyDrag)
+  const [cancelDrag, setCancelDrag] = useState<typeof dragLockRef.current>(null);
+  // dnd-kit khong co ham huy luot keo -> gia lap phim Esc tren document: ca cam bien chuot lan ban phim deu huy
+  // luot keo khi gap Esc (giong nguoi dung tu bam Esc) roi goi handleDragCancel. Phai chay trong effect, tuc la
+  // SAU khi React da ve xong luot keo: huy som hon (vd setTimeout 0 ngay sau onDragStart) thi dnd-kit chua ghi
+  // nhan luot keo, no bo qua onDragCancel va giao dien ket o trang thai "dang keo".
+  useEffect(() => {
+    // Chi huy dung luot keo da bi tu choi (chua tha tay, chua co luot keo moi)
+    if (!cancelDrag || dragLockRef.current !== cancelDrag) return;
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true })
+    );
+  }, [cancelDrag]);
+
+  // Nguoi khac da giu the nay: bao ai dang keo va HUY luot keo ngay (the bay ve cho cu), khong de nguoi dung
+  // keo tiep toi luc tha moi biet.
+  const denyDrag = (state: NonNullable<typeof dragLockRef.current>, other: CardDragLock) => {
+    if (dragLockRef.current !== state || state.deniedBy) return;
+    state.deniedBy = other;
+    setListsError(`${other.userName || 'Người khác'} đang kéo thẻ này, hãy thử lại sau.`);
+    setCancelDrag(state);
+  };
+
   // Bat dau keo the: xin khoa + gia han dinh ky. The vua bi nguoi khac khoa (giua luc
-  // nhan chuot va luc du 5px de bat dau keo) thi khong xin nua, chi ghi nhan bi tu choi.
+  // nhan chuot va luc du 5px de bat dau keo) thi khong xin nua, huy luon.
   const startCardLock = (cardId: string) => {
     stopCardLock();
     const state = {
       cardId,
-      deniedBy: cardLocks.get(cardId) ?? null,
+      deniedBy: null as CardDragLock | null,
       renew: null as ReturnType<typeof setInterval> | null,
     };
     dragLockRef.current = state;
-    if (state.deniedBy || !boardId) return;
+    const known = cardLocks.get(cardId);
+    if (known) {
+      denyDrag(state, known);
+      return;
+    }
+    if (!boardId) return;
     const ask = () => {
       void acquireCardDragLock(boardId, cardId).then((other) => {
-        // Tra loi den muon cua luot keo cu thi bo qua
-        if (other && dragLockRef.current === state) state.deniedBy = other;
+        // Tra loi den muon cua luot keo cu thi denyDrag tu bo qua
+        if (other) denyDrag(state, other);
       });
     };
     ask();
@@ -379,12 +407,10 @@ export function useBoardDnd({
 
     // ---- Keo tha the ----
     if (type === 'card') {
-      // Nguoi khac dang keo the nay: khong luu, tra the ve cho cu
+      // Nguoi khac dang keo the nay (tha tay truoc khi kip huy): khong luu, tra the ve cho cu.
+      // denyDrag da bao loi "X dang keo the nay".
       if (cardLock?.deniedBy) {
         restoreDragSnapshot();
-        setListsError(
-          `${cardLock.deniedBy.userName || 'Người khác'} đang kéo thẻ này, hãy thử lại sau.`
-        );
         return;
       }
       const myDragGeneration = dragGenerationRef.current;

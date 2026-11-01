@@ -62,15 +62,25 @@ function DoneCircle({ done }: { done: boolean }) {
 // lang phi khi ve lai ~75 the moi lan dnd-kit doi trang thai).
 const DUE_DATE_FORMAT = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' });
 
+// Trang thai thuong / dang bi nguoi khac keo. Tach han 2 bo lop, khong noi them lop vao sau: Tailwind xep lop
+// theo thu tu trong file CSS chu khong theo thu tu trong chuoi class, nen de ca cursor-pointer lan
+// cursor-not-allowed thi cursor-pointer thang (ban deploy hien ban tay thay vi bieu tuong cam).
+// [&_*]: ca nut / chu ben trong the cung hien bieu tuong cam (nut mac dinh co con tro rieng).
+const FREE_CARD = 'cursor-pointer ring-1 ring-black/[0.04] hover:shadow-md dark:ring-white/10';
+const LOCKED_CARD =
+  'cursor-not-allowed opacity-80 ring-2 ring-amber-400 dark:ring-amber-500 [&_*]:cursor-not-allowed';
+
 interface BodyProps {
   card: Card;
   listStatus: CardStatus | null;
   onToggleDone: (card: Card) => void;
+  // Nguoi khac dang keo the: tick hoan thanh cung chuyen cot the nen phai chan theo
+  locked: boolean;
 }
 
 // Phan noi dung cua the (nhan, tieu de, huy hieu...) tach rieng va memo: useSortable lam CardItem ve lai moi khi dnd-kit
 // doi trang thai (bat dau keo, doi "over", chuyen cot). Noi dung khong doi thi khong can dung lai cay nay.
-const CardBody = memo(function CardBody({ card, listStatus, onToggleDone }: BodyProps) {
+const CardBody = memo(function CardBody({ card, listStatus, onToggleDone, locked }: BodyProps) {
   const checklistItems = card.checklists?.flatMap((c) => c.items) ?? [];
   const clDone = checklistItems.filter((i) => i.isDone).length;
   const commentCount = card.comments?.length ?? 0;
@@ -89,6 +99,7 @@ const CardBody = memo(function CardBody({ card, listStatus, onToggleDone }: Body
     <>
       <button
         type="button"
+        disabled={locked}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
@@ -244,7 +255,7 @@ export default function CardItem({
       <div className="overflow-hidden rotate-3 scale-[1.03] cursor-grabbing rounded-lg bg-white text-sm shadow-2xl ring-1 ring-black/5 dark:bg-slate-700 dark:ring-white/10">
         <CardCover card={card} />
         <div className="flex gap-2 px-3 py-2">
-        <CardBody card={card} listStatus={listStatus} onToggleDone={handleToggleDone} />
+        <CardBody card={card} listStatus={listStatus} onToggleDone={handleToggleDone} locked={false} />
       </div>
       </div>
     );
@@ -263,16 +274,19 @@ export default function CardItem({
         // tran chieu cao thi flexbox se bop det cac the lai thay vi cho cuon.
         isDragging
           ? 'shrink-0 rounded-lg border-2 border-dashed border-slate-300 bg-slate-200/60 text-sm dark:border-slate-600 dark:bg-slate-900/40 [&_*]:invisible'
-          : `group/card relative shrink-0 cursor-pointer overflow-hidden rounded-lg bg-white text-sm shadow-sm ring-1 ring-black/[0.04] transition-shadow hover:shadow-md dark:bg-slate-700 dark:ring-white/10${
-              highlight?.enter ? ' tf-card-in' : ''
-            }${highlight?.flash ? ' tf-card-flash' : ''}${
-              lockedBy ? ' cursor-not-allowed opacity-80 ring-2 ring-amber-400 dark:ring-amber-500' : ''
-            }`
+          : `group/card relative shrink-0 overflow-hidden rounded-lg bg-white text-sm shadow-sm transition-shadow dark:bg-slate-700 ${
+              lockedBy ? LOCKED_CARD : FREE_CARD
+            }${highlight?.enter ? ' tf-card-in' : ''}${highlight?.flash ? ' tf-card-flash' : ''}`
       }
     >
       {!isDragging && hasCover && <CardCover card={card} />}
       <div className="flex gap-2 px-3 py-2">
-        <CardBody card={card} listStatus={listStatus} onToggleDone={handleToggleDone} />
+        <CardBody
+          card={card}
+          listStatus={listStatus}
+          onToggleDone={handleToggleDone}
+          locked={lockedBy !== undefined}
+        />
       </div>
 
       {lockedBy && (
@@ -285,7 +299,7 @@ export default function CardItem({
         </p>
       )}
 
-      {onRequestDelete && (
+      {onRequestDelete && !lockedBy && (
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}

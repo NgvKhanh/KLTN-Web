@@ -410,6 +410,51 @@ describe('useBoardDnd: khoa keo tha the', () => {
     expect(idsOf(result.current.lists, 'L1')).toEqual(['A', 'B']);
   });
 
+  // Huy luot keo = gia lap phim Esc tren document (cach duy nhat de dnd-kit tu huy luot keo dang chay)
+  const isEscOnDocument = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.some(([e]) => e instanceof KeyboardEvent && e.type === 'keydown' && e.code === 'Escape');
+
+  it('server tu choi giua luc keo -> HUY luot keo ngay sau khi ve xong (khong doi toi luc tha tay)', async () => {
+    const dispatch = vi.spyOn(document, 'dispatchEvent');
+    acquireMock.mockResolvedValueOnce(lockByBinh);
+    const { result } = renderHook(() => useHarness(twoLists()));
+
+    await act(async () => {
+      result.current.handleDragStart(cardDrag('A'));
+    });
+    expect(result.current.listsError).toContain('Bình đang kéo thẻ này');
+    expect(isEscOnDocument(dispatch)).toBe(true);
+    dispatch.mockRestore();
+  });
+
+  it('the da biet la bi khoa luc bat dau keo -> huy luon, khong can hoi server', () => {
+    const dispatch = vi.spyOn(document, 'dispatchEvent');
+    const { result } = renderHook(() =>
+      useHarness(twoLists(), new Map([['A', lockByBinh]]))
+    );
+    act(() => result.current.handleDragStart(cardDrag('A')));
+    expect(acquireMock).not.toHaveBeenCalled();
+    expect(isEscOnDocument(dispatch)).toBe(true);
+    expect(result.current.listsError).toContain('Bình đang kéo thẻ này');
+    dispatch.mockRestore();
+  });
+
+  it('tra loi tu choi den SAU khi luot keo da ket thuc -> bo qua, khong gui Esc vao luot keo khac', async () => {
+    const dispatch = vi.spyOn(document, 'dispatchEvent');
+    const { promise: ack, resolve: answer } = deferred<CardDragLock | null>();
+    acquireMock.mockReturnValueOnce(ack);
+    const { result } = renderHook(() => useHarness(twoLists()));
+
+    act(() => result.current.handleDragStart(cardDrag('A')));
+    act(() => result.current.handleDragCancel());
+    await act(async () => {
+      answer(lockByBinh);
+    });
+    expect(isEscOnDocument(dispatch)).toBe(false);
+    expect(result.current.listsError).toBeNull();
+    dispatch.mockRestore();
+  });
+
   it('huy keo -> nha khoa ngay', () => {
     const { result } = renderHook(() => useHarness(twoLists()));
     act(() => result.current.handleDragStart(cardDrag('A')));
